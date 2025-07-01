@@ -10,7 +10,15 @@ RUN yarn config set -H nodeLinker node-modules \
  && yarn install --immutable
 
 COPY . .
-RUN yarn build          # produces .next/ for production
+
+# Declare the incoming build‑arg
+ARG NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY
+
+# Expose it as an env variable for yarn build
+ENV NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY=${NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY}
+
+RUN echo "NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY=${NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY}" > .env \
+ && yarn build          # produces .next/ for production
 
 # ---------- Runtime stage ----------------------------------------------
 FROM node:20-alpine
