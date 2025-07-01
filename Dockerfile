@@ -1,35 +1,53 @@
-###### Stage 1 ­— install dependencies #########################
+############################################
+# Stage 1 – deps                           #
+############################################
 FROM node:20-alpine AS deps
 
-# 1 Enable Corepack and activate the Yarn version the project requests
-RUN corepack enable && corepack prepare yarn@4.9.1 --activate
-
 WORKDIR /app
 
-# 2 Leverage Docker cache: copy manifest files first
+# Enable Corepack + Yarn 4.9.1
+RUN corepack enable \
+ && corepack prepare yarn@4.9.1 --activate
+
+# Copy manifest files
 COPY package.json yarn.lock ./
 
-# 3 Yarn 4 syntax: immutable install fails if lockfile or node version drift
-RUN yarn install --immutable
+# Force Yarn to produce node_modules
+RUN yarn config set -H nodeLinker node-modules \
+ && yarn install --immutable
 
-###### Stage 2 ­— build application ############################
+
+############################################
+# Stage 2 – build                          #
+############################################
 FROM node:20-alpine AS builder
-RUN corepack enable && corepack prepare yarn@4.9.1 --activate
+
 WORKDIR /app
 
+RUN corepack enable \
+ && corepack prepare yarn@4.9.1 --activate
+
+# Copy deps + source
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Backend build: compile TS + admin UI (adjust if you don’t need it)
+# Build the Next.js storefront
 RUN yarn build
 
-###### Stage 3 ­— runtime image ################################
+
+############################################
+# Stage 3 – runtime                        #
+############################################
 FROM node:20-alpine
-RUN corepack enable && corepack prepare yarn@4.9.1 --activate
+
 WORKDIR /app
 
+RUN corepack enable \
+ && corepack prepare yarn@4.9.1 --activate
+
 ENV NODE_ENV=production
+
 COPY --from=builder /app ./
 
-EXPOSE 9000
-CMD ["sh","-c","medusa migrations run && yarn start"]
+EXPOSE 3000
+CMD ["yarn","start"]
